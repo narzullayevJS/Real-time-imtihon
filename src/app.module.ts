@@ -16,7 +16,7 @@ import { PollModule } from './poll/poll.module';
       host: 'localhost',
       port: 5432,
       username: 'postgres',
-      password: '2009',
+      password: '1235',
       database: 'real_time',
       entities: [User, Poll, Vote],
       synchronize: true,
