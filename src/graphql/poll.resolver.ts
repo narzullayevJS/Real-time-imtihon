@@ -53,7 +53,6 @@ export class PollResolver {
     });
     await this.voteRepository.save(vote);
 
-    // Publish updated results
     const votes = await this.voteRepository.find({ where: { pollId: { id: pollId } } });
     const results = poll.options.reduce((acc, opt) => {
       acc[opt] = votes.filter(v => v.selectedOption === opt).length;

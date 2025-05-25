@@ -1,5 +1,13 @@
-import { Controller, Post, Body, HttpException, HttpStatus } from '@nestjs/common';
+import { Controller, Post, Body, Get, UseGuards } from '@nestjs/common';
 import { AuthService } from './auth.service';
+import { RegisterDto } from './dto/register.dto';
+import { LoginDto } from './dto/login.dto';
+import { RegisterResponseDto } from './dto/register-response.dto';
+import { LoginResponseDto } from './dto/login-response.dto';
+import { CurrentUser } from './current-user.decorator';
+import { User } from 'src/entities/User.entity';
+import { GqlAuthGuard } from './auth.guard';
+import { ApiBearerAuth } from '@nestjs/swagger';
 
 @Controller('auth')
 export class AuthController {
@@ -7,27 +15,25 @@ export class AuthController {
 
   @Post('register')
   async register(
-    @Body('name') name: string,
-    @Body('email') email: string,
-    @Body('password') password: string,
-  ) {
-    try {
-      const user = await this.authService.register(name, email, password);
-      return { message: 'User registered successfully', userId: user.id };
-    } catch (error) {
-      throw new HttpException('Registration failed', HttpStatus.BAD_REQUEST);
-    }
+    @Body() registerDto: RegisterDto,
+  ): Promise<RegisterResponseDto> {
+    const user = await this.authService.register(registerDto);
+    return {
+      message: 'User registered successfully',
+      userId: user.id,
+    };
   }
 
   @Post('login')
-  async login(
-    @Body('email') email: string,
-    @Body('password') password: string,
-  ) {
-    const user = await this.authService.validateUser(email, password);
-    if (!user) {
-      throw new HttpException('Invalid credentials', HttpStatus.UNAUTHORIZED);
-    }
+  async login(@Body() loginDto: LoginDto): Promise<LoginResponseDto> {
+    const user = await this.authService.validateUser(loginDto);
     return this.authService.login(user);
+  }
+
+  @Get('me')
+  @ApiBearerAuth()
+  @UseGuards(GqlAuthGuard)
+  async getProfile(@CurrentUser() user: User) {
+    return this.authService.getProfile(user);
   }
 }

@@ -1,9 +1,18 @@
-import { Injectable } from '@nestjs/common';
+import {
+  Injectable,
+  ConflictException,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { Repository } from 'typeorm';
-import { User } from '../entities/User.entity';
 import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
+import { User } from '../entities/User.entity';
+import { RegisterDto } from './dto/register.dto';
+import { LoginDto } from './dto/login.dto';
+import { LoginResponseDto } from './dto/login-response.dto';
+import { UserResponseDto } from './dto/user-response.dto';
 
 @Injectable()
 export class AuthService {
@@ -13,30 +22,75 @@ export class AuthService {
     private jwtService: JwtService,
   ) {}
 
-  async validateUser(email: string, pass: string): Promise<any> {
-    const user = await this.usersRepository.findOne({ where: { email } });
-    if (user && (await bcrypt.compare(pass, user.password))) {
-      const { password, ...result } = user;
-      return result;
+  async validateUser(loginDto: LoginDto): Promise<User> {
+    const user = await this.usersRepository.findOne({
+      where: { email: loginDto.email },
+      select: ['id', 'name', 'email', 'password', 'role', 'createdAt'],
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found with this email');
     }
-    return null;
+
+    const isPasswordValid = await bcrypt.compare(
+      loginDto.password,
+      user.password,
+    );
+
+    if (!isPasswordValid) {
+      throw new UnauthorizedException('Invalid password');
+    }
+
+    return user;
   }
 
-  async login(user: any) {
-    const payload = { email: user.email, sub: user.id, role: user.role };
+  async login(user: User): Promise<LoginResponseDto> {
+    const payload = {
+      email: user.email,
+      id: user.id,
+      role: user.role,
+    };
+
     return {
-      access_token: this.jwtService.sign(payload),
+      access_token: this.jwtService.sign(payload, {
+        secret: 'your_jwt_secret',
+        expiresIn: '1d',
+      }),
+      user: this.toUserResponseDto(user),
     };
   }
 
-  async register(name: string, email: string, password: string): Promise<User> {
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const newUser = this.usersRepository.create({
-      name,
-      email,
-      password: hashedPassword,
-      role: 'user',
+  async getProfile(userPayload: User) {
+    const user = await this.usersRepository.findOne({
+      where: { id: userPayload.id },
     });
-    return this.usersRepository.save(newUser);
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    return { user: this.toUserResponseDto(user) };
+  }
+
+  async register(registerDto: RegisterDto): Promise<UserResponseDto> {
+    const existingUser = await this.usersRepository.findOne({
+      where: { email: registerDto.email },
+    });
+
+    if (existingUser) {
+      throw new ConflictException('Email already in use');
+    }
+
+    const newUser = this.usersRepository.create({
+      ...registerDto,
+    });
+
+    const savedUser = await this.usersRepository.save(newUser);
+    return this.toUserResponseDto(savedUser);
+  }
+
+  private toUserResponseDto(user: User): UserResponseDto {
+    const { password, ...userData } = user;
+    return userData;
   }
 }

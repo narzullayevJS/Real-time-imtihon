@@ -1,24 +1,60 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn } from 'typeorm';
+import { ApiProperty } from '@nestjs/swagger';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  BeforeInsert,
+  OneToMany,
+} from 'typeorm';
+import * as bcrypt from 'bcrypt';
+import { Poll } from './Poll.entity';
+import { Vote } from './Vote.entity';
 
-export type UserRole = 'admin' | 'user';
+export enum UserRoles {
+  ADMIN = 'admin',
+  USER = 'user',
+}
 
-@Entity()
+@Entity('users')
 export class User {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column()
+  @Column({ nullable: false })
+  @ApiProperty({ default: 'Shahriyor' })
   name: string;
 
-  @Column({ unique: true })
+  @Column({ nullable: false, unique: true })
+  @ApiProperty({ default: 'shahriyor@gmail.com' })
   email: string;
 
-  @Column()
-  password: string; // hashed password
+  @Column({ nullable: false, select: false })
+  @ApiProperty({ default: 'Admin_123' })
+  password: string;
 
-  @Column({ type: 'enum', enum: ['admin', 'user'], default: 'user' })
-  role: UserRole;
+  @Column({
+    type: 'enum',
+    enum: UserRoles,
+    enumName: 'UserRoles',
+    default: UserRoles.USER,
+  })
+  @ApiProperty({ default: UserRoles.USER })
+  role: UserRoles;
 
   @CreateDateColumn()
   createdAt: Date;
+
+  @OneToMany(() => Poll, (poll) => poll.created_by)
+  pollsCreated: Poll[];
+
+  @OneToMany(() => Vote, (vote) => vote.user)
+  votes: Vote[];
+
+  @BeforeInsert()
+  async hashPassword() {
+    if (this.password) {
+      this.password = await bcrypt.hash(this.password, 12);
+    }
+  }
 }

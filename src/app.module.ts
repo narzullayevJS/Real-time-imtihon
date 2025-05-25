@@ -6,9 +6,8 @@ import { User } from './entities/User.entity';
 import { Poll } from './entities/Poll.entity';
 import { Vote } from './entities/Vote.entity';
 import { AuthModule } from './auth/auth.module';
-import { PollService } from './admin/poll.service';
-import { PollController } from './admin/poll.controller';
 import { RedisModule } from './redis/redis.module';
+import { PollModule } from './poll/poll.module';
 
 @Module({
   imports: [
@@ -17,7 +16,7 @@ import { RedisModule } from './redis/redis.module';
       host: 'localhost',
       port: 5432,
       username: 'postgres',
-      password: '1235',
+      password: '2009',
       database: 'real_time',
       entities: [User, Poll, Vote],
       synchronize: true,
@@ -25,8 +24,9 @@ import { RedisModule } from './redis/redis.module';
     TypeOrmModule.forFeature([User, Poll, Vote]),
     AuthModule,
     RedisModule,
+    PollModule,
   ],
-  controllers: [AppController, PollController],
-  providers: [AppService, PollService],
+  controllers: [AppController],
+  providers: [AppService],
 })
 export class AppModule {}
